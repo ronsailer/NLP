@@ -14,10 +14,8 @@ def sigmoid(x):
     s -- sigmoid(x)
     """
 
-    ### YOUR CODE HERE
-    raise NotImplementedError
-    ### END YOUR CODE
-
+    s = 1+np.exp(-x)
+    s = 1/s
     return s
 
 
@@ -34,9 +32,7 @@ def sigmoid_grad(s):
     ds -- Your computed gradient.
     """
 
-    ### YOUR CODE HERE
-    raise NotImplementedError
-    ### END YOUR CODE
+    ds = np.multiply(s, (1 - s))
 
     return ds
 
@@ -64,6 +60,7 @@ def test_sigmoid_basic():
 
 
 def test_sigmoid():
+    import tensorflow as tf
     """
     Use this space to test your sigmoid implementation by running:
         python q2_sigmoid.py
@@ -71,9 +68,21 @@ def test_sigmoid():
     your tests be graded.
     """
     print "Running your tests..."
-    ### YOUR CODE HERE
-    raise NotImplementedError
-    ### END YOUR CODE
+    for i in range(10):
+        for j in range(10):
+            batch = np.random.rand(i+1, j+1)
+            x = tf.placeholder(tf.float32, shape=[None, j+1])
+            y = tf.nn.sigmoid(x)
+            tf.global_variables_initializer()
+            sess = tf.Session()
+            tf_sigmoid = sess.run(y, feed_dict={x: batch})
+            my_sigmoid = sigmoid(batch)
+            assert np.allclose(tf_sigmoid, my_sigmoid, rtol=1e-05, atol=1e-06)
+            print "##### tf_sigmoid: #####"
+            print tf_sigmoid
+            print "#### my my_sigmoid: #####"
+            print my_sigmoid
+            print "-----------------------------"
 
 
 if __name__ == "__main__":
