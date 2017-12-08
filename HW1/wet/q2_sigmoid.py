@@ -11,7 +11,7 @@ def sigmoid(x):
     x -- A scalar or numpy array.
 
     Return:
-    s -- sigmoid(x)
+    # s -- sigmoid(x)
     """
 
     s = 1+np.exp(-x)
