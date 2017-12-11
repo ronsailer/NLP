@@ -120,8 +120,9 @@ class NERModel(LanguageModel):
     """
     ### YOUR CODE HERE
     feed_dict = {self.input_placeholder: input_batch,
-                 self.labels_placeholder: label_batch, 
                  self.dropout_placeholder: dropout}
+    if label_batch is not None:
+    	feed_dict[self.labels_placeholder] = label_batch
     ### END YOUR CODE
     return feed_dict
 
@@ -188,25 +189,23 @@ class NERModel(LanguageModel):
       output: tf.Tensor of shape (batch_size, label_size)
     """
     ### YOUR CODE HERE
-    
-    xavier_initializer = xavier_weight_init()
     regularizer = tf.contrib.layers.l2_regularizer(scale=self.config.l2)
+    
     with tf.variable_scope("hidden_layer"):
       	W = tf.get_variable("W", initializer = xavier_weight_init(), 
       		shape = (self.config.window_size * self.config.embed_size, self.config.hidden_size), regularizer = regularizer)
       	b1 = tf.get_variable("b1", initializer = xavier_weight_init(), 
-      		shape = (self.config.hidden_size), regularizer = regularizer)
+      		shape = (self.config.hidden_size, ), regularizer = regularizer)
       	h1 = tf.tanh(tf.matmul(window, W) + b1)
 
     with tf.variable_scope("softmax_layer"):
     	U = tf.get_variable("U", initializer = xavier_weight_init(), 
       		shape = (self.config.hidden_size, self.config.label_size), regularizer = regularizer)
       	b2 = tf.get_variable("b2", initializer = xavier_weight_init(), 
-      		shape = (self.config.label_size), regularizer = regularizer)
+      		shape = (self.config.label_size, ), regularizer = regularizer)
       	h2 = tf.matmul(h1, U) + b2
 
-    h2 = tf.nn.dropout(h2, self.dropout_placeholder)
-    output = h2
+    output = tf.nn.dropout(h2, self.dropout_placeholder)
     ### END YOUR CODE
     return output 
 
@@ -223,7 +222,7 @@ class NERModel(LanguageModel):
     ### YOUR CODE HERE
     loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits = y, labels = self.labels_placeholder))
     loss += tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
-    tf.losses.add_loss(loss, loss_collection=tf.GraphKeys.LOSSES)
+    tf.losses.add_loss(loss, loss_collection = tf.GraphKeys.LOSSES)
     ### END YOUR CODE
     return loss
 
@@ -247,8 +246,7 @@ class NERModel(LanguageModel):
       train_op: The Op for training.
     """
     ### YOUR CODE HERE
-    loss = tf.reduce_sum(tf.get_collection(tf.GraphKeys.LOSSES))
-    train_op = tf.train.GradientDescentOptimizer(self.config.lr).minimize(loss)
+    train_op = tf.train.AdamOptimizer(self.config.lr).minimize(loss)
     ### END YOUR CODE
     return train_op
 
