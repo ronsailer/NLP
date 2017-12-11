@@ -92,9 +92,9 @@ class NERModel(LanguageModel):
     (Don't change the variable names)
     """
     ### YOUR CODE HERE
-    self.input_placeholder = tf.placeholder(dtype=tf.int32, shape=(None, self.config.window_size))
-    self.labels_placeholder = tf.placeholder(dtype=tf.float32, shape=(None, self.config.label_size))
-    self.dropout_placeholder = tf.placeholder(dtype=tf.float32)    
+    self.input_placeholder = tf.placeholder(dtype = tf.int32, shape = (None, self.config.window_size))
+    self.labels_placeholder = tf.placeholder(dtype = tf.float32, shape = (None, self.config.label_size))
+    self.dropout_placeholder = tf.placeholder(dtype = tf.float32)    
     ### END YOUR CODE
 
   def create_feed_dict(self, input_batch, dropout, label_batch=None):
@@ -189,7 +189,7 @@ class NERModel(LanguageModel):
       output: tf.Tensor of shape (batch_size, label_size)
     """
     ### YOUR CODE HERE
-    regularizer = tf.contrib.layers.l2_regularizer(scale=self.config.l2)
+    regularizer = tf.contrib.layers.l2_regularizer(scale = self.config.l2)
     
     with tf.variable_scope("hidden_layer"):
       	W = tf.get_variable("W", initializer = xavier_weight_init(), 
