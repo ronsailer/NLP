@@ -94,7 +94,7 @@ class NERModel(LanguageModel):
     ### YOUR CODE HERE
     self.input_placeholder = tf.placeholder(dtype = tf.int32, shape = (None, self.config.window_size))
     self.labels_placeholder = tf.placeholder(dtype = tf.float32, shape = (None, self.config.label_size))
-    self.dropout_placeholder = tf.placeholder(dtype = tf.float32)    
+    self.dropout_placeholder = tf.placeholder(dtype = tf.float32)
     ### END YOUR CODE
 
   def create_feed_dict(self, input_batch, dropout, label_batch=None):
@@ -153,13 +153,13 @@ class NERModel(LanguageModel):
     # The embedding lookup is currently only implemented for the CPU
     with tf.device('/cpu:0'):
       ### YOUR CODE HERE
-        embedding = tf.get_variable("embedding",
-                                    [len(self.wv), self.config.embed_size],
-                                    initializer=xavier_weight_init())
-        window = tf.nn.embedding_lookup(params=embedding, ids=self.input_placeholder)
-        window = tf.reshape(window, shape=[-1, self.config.window_size * self.config.embed_size], name="window")
+      L = tf.get_variable("L",
+        shape = (len(self.wv), self.config.embed_size),
+        initializer = xavier_weight_init())
+      window = tf.nn.embedding_lookup(params = L, ids = self.input_placeholder)
+      window = tf.reshape(window, shape = (-1, self.config.window_size * self.config.embed_size))
       ### END YOUR CODE
-    return window
+      return window
 
   def add_model(self, window):
     """Adds the 1-hidden-layer NN.
@@ -192,18 +192,18 @@ class NERModel(LanguageModel):
     regularizer = tf.contrib.layers.l2_regularizer(scale = self.config.l2)
     
     with tf.variable_scope("hidden_layer"):
-      	W = tf.get_variable("W", initializer = xavier_weight_init(), 
-      		shape = (self.config.window_size * self.config.embed_size, self.config.hidden_size), regularizer = regularizer)
-      	b1 = tf.get_variable("b1", initializer = xavier_weight_init(), 
-      		shape = (self.config.hidden_size, ), regularizer = regularizer)
-      	h1 = tf.tanh(tf.matmul(window, W) + b1)
+      W = tf.get_variable("W", initializer = xavier_weight_init(), 
+        shape = (self.config.window_size * self.config.embed_size, self.config.hidden_size), regularizer = regularizer)
+      b1 = tf.get_variable("b1", initializer = xavier_weight_init(), 
+        shape = self.config.hidden_size, regularizer = regularizer)
+      h1 = tf.tanh(tf.matmul(window, W) + b1)
 
     with tf.variable_scope("softmax_layer"):
-    	U = tf.get_variable("U", initializer = xavier_weight_init(), 
-      		shape = (self.config.hidden_size, self.config.label_size), regularizer = regularizer)
-      	b2 = tf.get_variable("b2", initializer = xavier_weight_init(), 
-      		shape = (self.config.label_size, ), regularizer = regularizer)
-      	h2 = tf.matmul(h1, U) + b2
+      U = tf.get_variable("U", initializer = xavier_weight_init(), 
+        shape = (self.config.hidden_size, self.config.label_size), regularizer = regularizer)
+      b2 = tf.get_variable("b2", initializer = xavier_weight_init(), 
+        shape = self.config.label_size, regularizer = regularizer)
+      h2 = tf.matmul(h1, U) + b2
 
     output = tf.nn.dropout(h2, self.dropout_placeholder)
     ### END YOUR CODE
@@ -222,7 +222,7 @@ class NERModel(LanguageModel):
     ### YOUR CODE HERE
     loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits = y, labels = self.labels_placeholder))
     loss += tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
-    tf.losses.add_loss(loss, loss_collection = tf.GraphKeys.LOSSES)
+    #tf.losses.add_loss(loss, loss_collection = tf.GraphKeys.LOSSES)
     ### END YOUR CODE
     return loss
 
