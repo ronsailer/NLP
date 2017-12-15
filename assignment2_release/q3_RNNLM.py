@@ -29,10 +29,10 @@ class Config(object):
   embed_size = 50
   hidden_size = 100
   num_steps = 10
-  max_epochs = 16
+  max_epochs = 55
   early_stopping = 2
-  dropout = 0.9
-  lr = 0.001
+  dropout = 0.65
+  lr = 0.5
 
 class RNNLM_Model(LanguageModel):
 
@@ -106,9 +106,9 @@ class RNNLM_Model(LanguageModel):
     with tf.device('/cpu:0'):
       ### YOUR CODE HERE
       with tf.variable_scope("embedding_layer", reuse=tf.AUTO_REUSE):
-        L = tf.get_variable("L", shape=[len(self.vocab), self.config.embed_size], initializer=xavier_weight_init())
-        embeddings = tf.nn.embedding_lookup(L, self.input_placeholder)
-        inputs = [tf.squeeze(x, [1]) for x in tf.split(embeddings, self.config.num_steps, 1)]
+      	L = tf.get_variable("L", shape=[len(self.vocab), self.config.embed_size], initializer=xavier_weight_init())
+      	embeddings = tf.nn.embedding_lookup(L, self.input_placeholder)
+      	inputs = [tf.squeeze(x, [1]) for x in tf.split(embeddings, self.config.num_steps, 1)]
       ### END YOUR CODE
       return inputs
 
@@ -133,9 +133,9 @@ class RNNLM_Model(LanguageModel):
     """
     ### YOUR CODE HERE
     with tf.variable_scope("projection_layer"):
-      U = tf.get_variable("U", shape=[self.config.hidden_size , len(self.vocab)], initializer=xavier_weight_init())
-      b_2 = tf.get_variable("b_2", shape=[len(self.vocab)])
-      outputs = [tf.matmul(o, U) + b_2 for o in rnn_outputs]
+    	U = tf.get_variable("U", shape=[self.config.hidden_size , len(self.vocab)], initializer=xavier_weight_init())
+    	b_2 = tf.get_variable("b_2", shape=[len(self.vocab)])
+    	outputs = [tf.matmul(o, U) + b_2 for o in rnn_outputs]
     ### END YOUR CODE
     return outputs
 
@@ -248,32 +248,32 @@ class RNNLM_Model(LanguageModel):
     self.initial_state = tf.zeros(name="initial_state", shape=[self.config.batch_size, self.config.hidden_size])
 
     with tf.variable_scope("RNN",reuse=tf.AUTO_REUSE) as scope:
-    
-    H=tf.get_variable("H", shape=[self.config.hidden_size, self.config.hidden_size], initializer=xavier_weight_init())
-    I=tf.get_variable("I", shape=[self.config.embed_size, self.config.hidden_size], initializer=xavier_weight_init())
-    b_1=tf.get_variable("b_1", shape=[self.config.hidden_size], initializer=xavier_weight_init())
+		
+		H=tf.get_variable("H", shape=[self.config.hidden_size, self.config.hidden_size], initializer=xavier_weight_init())
+		I=tf.get_variable("I", shape=[self.config.embed_size, self.config.hidden_size], initializer=xavier_weight_init())
+		b_1=tf.get_variable("b_1", shape=[self.config.hidden_size], initializer=xavier_weight_init())
 
-    rnn_outputs.append(self.initial_state)
+		rnn_outputs.append(self.initial_state)
 
-    for i in xrange(len(inputs)):
-      if i>0:
-        scope.reuse_variables()
+		for i in xrange(len(inputs)):
+			if i>0:
+				scope.reuse_variables()
 
-      # print "H.shape:", H.shape
-      # print "inputs[i].shape: ", inputs[i].shape
-      # print "I.shape:", I.shape
-      # print "outputs[-1].shape:", rnn_outputs[-1].shape
+			# print "H.shape:", H.shape
+			# print "inputs[i].shape: ", inputs[i].shape
+			# print "I.shape:", I.shape
+			# print "outputs[-1].shape:", rnn_outputs[-1].shape
 
-      h = tf.nn.sigmoid(tf.matmul(rnn_outputs[-1],H) + tf.matmul(inputs[i],I) + b_1)
+			h = tf.nn.sigmoid(tf.matmul(rnn_outputs[-1],H) + tf.matmul(inputs[i],I) + b_1)
 
-      rnn_outputs.append(h)
+			rnn_outputs.append(h)
 
-    self.final_state = rnn_outputs[-1]
+		self.final_state = rnn_outputs[-1]
 
-    #remove the dummy zero input
-    rnn_outputs = rnn_outputs[1:]
+		#remove the dummy zero input
+		rnn_outputs = rnn_outputs[1:]
 
-  #dropout
+	#dropout
     rnn_outputs = [tf.nn.dropout(o, self.dropout_placeholder) for o in rnn_outputs]
     ### END YOUR CODE
     return rnn_outputs
