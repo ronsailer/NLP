@@ -12,6 +12,8 @@ import tensorflow as tf
 from tensorflow.contrib.seq2seq import sequence_loss
 from model import LanguageModel
 
+from q2_initialization import xavier_weight_init
+
 # Let's set the parameters of our model
 # http://arxiv.org/pdf/1409.2329v4.pdf shows parameters that would achieve near
 # SotA numbers
@@ -79,8 +81,8 @@ class RNNLM_Model(LanguageModel):
     (Don't change the variable names)
     """
     ### YOUR CODE HERE
-    self.input_placeholder = tf.placeholder(dtype = tf.int32, shape = (None, self.config.num_steps))
-    self.labels_placeholder = tf.placeholder(dtype = tf.int32, shape = (None, self.config.num_steps))
+    self.input_placeholder = tf.placeholder(dtype = tf.int32, shape=[None, self.config.num_steps])
+    self.labels_placeholder = tf.placeholder(dtype = tf.int32, shape=[None, self.config.num_steps])
     self.dropout_placeholder = tf.placeholder(dtype = tf.float32)    
     ### END YOUR CODE
   
@@ -103,11 +105,10 @@ class RNNLM_Model(LanguageModel):
     # The embedding lookup is currently only implemented for the CPU
     with tf.device('/cpu:0'):
       ### YOUR CODE HERE
-      from q2_initialization import xavier_weight_init
-
-      L = tf.get_variable("L", shape=(len(self.vocab), self.config.embed_size), initializer = xavier_weight_init())
-      embeddings = tf.nn.embedding_lookup(L, self.input_placeholder)
-      inputs = [tf.squeeze(x) for x in tf.split(embeddings, self.config.num_steps, 1)]
+      with tf.variable_scope("embedding_layer", reuse=tf.AUTO_REUSE):
+      	L = tf.get_variable("L", shape=[len(self.vocab), self.config.embed_size], initializer=xavier_weight_init())
+      	embeddings = tf.nn.embedding_lookup(L, self.input_placeholder)
+      	inputs = [tf.squeeze(x, [1]) for x in tf.split(embeddings, self.config.num_steps, 1)]
       ### END YOUR CODE
       return inputs
 
@@ -131,13 +132,10 @@ class RNNLM_Model(LanguageModel):
                (batch_size, len(vocab)
     """
     ### YOUR CODE HERE
-    from q2_initialization import xavier_weight_init
-
     with tf.variable_scope("projection_layer"):
-      U = tf.get_variable("U", shape=(self.config.hidden_size , len(self.vocab)), initializer=xavier_weight_init())
-      b_2 = tf.get_variable("b_2", shape = len(self.vocab))
-      matmul_U = np.vectorize(lambda a: tf.matmul(a,U) + b_2)
-      outputs = matmul_U(rnn_outputs).tolist()
+    	U = tf.get_variable("U", shape=[self.config.hidden_size , len(self.vocab)], initializer=xavier_weight_init())
+    	b_2 = tf.get_variable("b_2", shape=[len(self.vocab)])
+    	outputs = [tf.matmul(o, U) + b_2 for o in rnn_outputs]
     ### END YOUR CODE
     return outputs
 
@@ -152,9 +150,11 @@ class RNNLM_Model(LanguageModel):
       loss: A 0-d tensor (scalar)
     """
     ### YOUR CODE HERE
+    #output: batch x num_steps x vocab
+    #targets, weights: batch x num_steps
     output = tf.reshape(output, [self.config.batch_size, self.config.num_steps, len(self.vocab)])
-    weights = tf.ones(shape=[self.config.batch_size, self.config.num_steps])
-    loss = tf.contrib.seq2seq.sequence_loss(output, self.labels_placeholder, weights)
+    weights = tf.ones([self.config.batch_size, self.config.num_steps])
+    loss = sequence_loss(output, self.labels_placeholder, weights)
     ### END YOUR CODE
     return loss
 
@@ -178,7 +178,7 @@ class RNNLM_Model(LanguageModel):
       train_op: The Op for training.
     """
     ### YOUR CODE HERE
-    with tf.variable_scope("Optimizer") as scope:
+    with tf.variable_scope("Optimizer", reuse=tf.AUTO_REUSE):
       train_op = tf.train.AdamOptimizer(self.config.lr).minimize(loss)
     ### END YOUR CODE
     return train_op
@@ -245,25 +245,35 @@ class RNNLM_Model(LanguageModel):
 
     rnn_outputs = []
 
-    with tf.variable_scope("RNN"):
-        H = tf.get_variable("H", [self.config.hidden_size, self.config.hidden_size])
-        I = tf.get_variable("I", [self.config.embed_size, self.config.hidden_size])
-        b_1 = tf.get_variable("b_1", [self.config.hidden_size])
+    self.initial_state = tf.zeros(name="initial_state", shape=[self.config.batch_size, self.config.hidden_size])
 
+    with tf.variable_scope("RNN",reuse=tf.AUTO_REUSE) as scope:
+		
+		H=tf.get_variable("H", shape=[self.config.hidden_size, self.config.hidden_size], initializer=xavier_weight_init())
+		I=tf.get_variable("I", shape=[self.config.embed_size, self.config.hidden_size], initializer=xavier_weight_init())
+		b_1=tf.get_variable("b_1", shape=[self.config.hidden_size], initializer=xavier_weight_init())
 
-    with tf.variable_scope("RNN") as scope:
-        scope.reuse_variables()
-        self.initial_state = tf.zeros([self.config.batch_size, self.config.hidden_size])
-        state = self.initial_state
-        for i in xrange(self.config.num_steps):
-            H = tf.get_variable("H", [self.config.hidden_size, self.config.hidden_size])
-            I = tf.get_variable("I", [self.config.embed_size, self.config.hidden_size])
-            b_1 = tf.get_variable("b_1", [self.config.hidden_size])
-            state = tf.nn.sigmoid(tf.matmul(state, H) + tf.matmul(inputs[i], I) + b_1)
-            rnn_outputs.append(state)
+		rnn_outputs.append(self.initial_state)
 
-        self.final_state = rnn_outputs[-1]
+		for i in xrange(len(inputs)):
+			if i>0:
+				scope.reuse_variables()
 
+			# print "H.shape:", H.shape
+			# print "inputs[i].shape: ", inputs[i].shape
+			# print "I.shape:", I.shape
+			# print "outputs[-1].shape:", rnn_outputs[-1].shape
+
+			h = tf.nn.sigmoid(tf.matmul(rnn_outputs[-1],H) + tf.matmul(inputs[i],I) + b_1)
+
+			rnn_outputs.append(h)
+
+		self.final_state = rnn_outputs[-1]
+
+		#remove the dummy zero input
+		rnn_outputs = rnn_outputs[1:]
+
+	#dropout
     rnn_outputs = [tf.nn.dropout(o, self.dropout_placeholder) for o in rnn_outputs]
     ### END YOUR CODE
     return rnn_outputs
@@ -322,11 +332,12 @@ def generate_text(session, model, config, starting_text='<eos>',
   tokens = [model.vocab.encode(word) for word in starting_text.split()]
   for i in xrange(stop_length):
     ### YOUR CODE HERE
-    feed = {model.input_placeholder: [tokens[-1:]],
-            model.initial_state: state,
-            model.dropout_placeholder: 1}
-    state, y_pred = session.run(
-        [model.final_state, model.predictions[-1]], feed_dict=feed)
+    feed_dict = {
+        model.input_placeholder: [tokens[-1:]],
+        model.initial_state: state,
+        model.dropout_placeholder: 1.0
+    }
+    y_pred, state = session.run([model.predictions[-1], model.final_state], feed_dict=feed_dict)
     ### END YOUR CODE
     next_word_idx = sample(y_pred[0], temperature=temp)
     tokens.append(next_word_idx)
