@@ -29,10 +29,10 @@ class Config(object):
   embed_size = 50
   hidden_size = 100
   num_steps = 10
-  max_epochs = 55
+  max_epochs = 16
   early_stopping = 2
-  dropout = 0.65
-  lr = 0.5
+  dropout = 0.9
+  lr = 0.001
 
 class RNNLM_Model(LanguageModel):
 
